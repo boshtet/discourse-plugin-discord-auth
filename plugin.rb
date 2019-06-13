@@ -29,34 +29,14 @@ class DiscordAuthenticator < ::Auth::OAuth2Authenticator
   end
 
   def after_authenticate(auth_token)
-    trustedGuild = false
-    if SiteSetting.discord_trusted_guild != ''
-      guildsString = open(BASE_API_URL + '/users/@me/guilds',
-                     "Authorization" => "Bearer " + auth_token.credentials.token).read
-      guilds = JSON.parse guildsString
-      for guild in guilds do
-        if guild['id'] == SiteSetting.discord_trusted_guild then
-          trustedGuild = true
-          break
-        end
-      end
-    end
-    if trustedGuild && !User.find_by_email(auth_token.info.email)
-      systemUser = User.find_by(id: -1)
-      Invite.generate_invite_link(auth_token.info.email, systemUser)
-    end
-
     result = super
     data = auth_token[:info]
     result.extra_data[:avatar_url] = data[:image]
     if (avatar_url = data[:image]).present?
       retrieve_avatar(result.user, avatar_url)
     end
-    if trustedGuild
-      result.extra_data[:auto_approve] = true
-    else
-      result.extra_data[:auto_approve] = false
-    end
+    result.email = "discord:#{auth_token[:uid]}"
+    result.extra_data[:auto_approve] = true
     result
   end
 
@@ -73,7 +53,7 @@ class DiscordAuthenticator < ::Auth::OAuth2Authenticator
 
   def register_middleware(omniauth)
     omniauth.provider :discord,
-                      scope: 'identify email guilds',
+                      scope: 'identify',
                       setup: lambda { |env|
                         strategy = env['omniauth.strategy']
                         strategy.options[:client_id] = SiteSetting.discord_client_id
