@@ -35,7 +35,7 @@ class DiscordAuthenticator < ::Auth::OAuth2Authenticator
     if (avatar_url = data[:image]).present?
       retrieve_avatar(result.user, avatar_url)
     end
-    result.email = "discord:#{auth_token[:uid]}"
+    result.email = "discord-#{auth_token[:uid]}@discourse.terminus.systems"
     result.extra_data[:auto_approve] = true
     result
   end
